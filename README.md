@@ -16,8 +16,6 @@ Before starting, ensure you have the following installed on your Windows compute
 
 ## 🛠️ Part 1: Get the Discord Token from the Server Owner
 
-You only need to get the TOKEN from the server owner, the owner will create a bot for you with limited access.
-
 1.  Ask the owner to provide you with the TOKEN, do not share it with anyone.
 2.  Save this token in a text file somewhere safe, you will use it later in your config.py file.
 
