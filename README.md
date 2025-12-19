@@ -14,42 +14,12 @@ Before starting, ensure you have the following installed on your Windows compute
 
 ---
 
-## 🛠️ Part 1: Discord Developer Portal Setup
+## 🛠️ Part 1: Get the Discord Token from the Server Owner
 
-You need to create a "Bot User" to get a Token.
+You only need to get the TOKEN from the server owner, the owner will create a bot for you with limited access.
 
-### 1. Create the Application
-1.  Go to the [Discord Developer Portal](https://discord.com/developers/applications).
-2.  Click **"New Application"** (top right).
-3.  Name it (e.g., "Omegle Host") and click **Create**.
-
-### 2. Configure the Bot & Intents
-1.  On the left sidebar, click **Bot**.
-2.  **Uncheck** the "Public Bot" toggle (so random people can't invite it).
-3.  Scroll down to **Privileged Gateway Intents**. You **MUST** enable these two:
-    * ✅ **Message Content Intent**
-    * ✅ **Server Members Intent**
-4.  Click **Save Changes**.
-5.  Scroll up to the **Token** section, click **Reset Token**, and copy it.
-    * *Keep this secret! You will need it for `config.py` later.*
-
-### 3. Fix "Private Bot" Error (If needed)
-If you can't save the "Public Bot" setting because of a "Default Authorization Link" error:
-1.  Go to the **Installation** tab on the left.
-2.  Under **Installation Contexts**, uncheck "User Install" (keep "Guild Install" checked).
-3.  Under **Install Link**, select **None** from the dropdown.
-4.  Save Changes, then go back to the **Bot** tab and try unchecking "Public Bot" again.
-
-### 4. Create the Invite Link
-1.  Go to **OAuth2** -> **URL Generator** on the left.
-2.  **Scopes:** Check `bot`.
-3.  **Bot Permissions:** Check ONLY these boxes:
-    * ✅ `View Channels`
-    * ✅ `Send Messages`
-    * ✅ `Embed Links`
-    * ✅ `Read Message History`
-    * ✅ `Manage Messages`
-4.  Copy the URL at the bottom and paste it into your browser to invite the bot to your server.
+1.  Ask the owner to provide you with the TOKEN, do not share it with anyone.
+2.  Save this token in a text file somewhere safe, you will use it later in your config.py file.
 
 ---
 
