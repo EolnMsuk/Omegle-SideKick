@@ -3,10 +3,10 @@
 # --- Discord Configuration ---
 BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
 
-GUILD_ID = 123456789012345678  # PASTE YOUR SERVER'S ID HERE
+GUILD_ID = 1131770315740024966  # PASTE YOUR SERVER'S ID HERE
 
 # The text channel where the menu will appear and commands are allowed
-COMMAND_CHANNEL_ID = 123456789012345678
+COMMAND_CHANNEL_ID = 1131770315740024966
 
 # The voice channel where users MUST be (with camera ON) to use commands
 STREAMING_VC_ID = 1131770315740024966
@@ -37,4 +37,5 @@ AUTO_RELAY = True
 
 # If True, automatically sets the volume slider
 AUTO_OMEGLE_VOL = True
+
 OMEGLE_VOL = 40
