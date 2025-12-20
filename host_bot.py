@@ -131,17 +131,17 @@ class OmegleHandler:
         # Ensure we are on the video page
         if config.OMEGLE_VIDEO_URL not in self.driver.current_url:
             await asyncio.to_thread(self.driver.get, config.OMEGLE_VIDEO_URL)
-            await self.handle_setup_sequence()
+            await self.handle_setup_sequence() # This handles Relay/Vol if the page had to reload
             await asyncio.sleep(1)
-
-        # Run automation (Relay) before skipping to ensure it's ready for next person
-        await self.run_automation()
 
         # Send ESC
         def _send_esc():
-            self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            time.sleep(0.5)
-            self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            try:
+                self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                time.sleep(0.5)
+                self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            except Exception as e:
+                print(f"Error sending ESC: {e}")
         
         await asyncio.to_thread(_send_esc)
         print("Skipped.")
@@ -246,6 +246,7 @@ async def handle_command_logic(source, action):
 
     # 3. Acknowledge (if interaction)
     if isinstance(source, discord.Interaction):
+        # We defer to stop the "Interaction Failed" or spinner, but we don't send a private followup anymore for reports
         await source.response.defer()
         try:
             # Announce in channel
@@ -258,9 +259,8 @@ async def handle_command_logic(source, action):
     elif action == "refresh":
         await browser.refresh()
     elif action == "report":
-        success = await browser.report()
-        if isinstance(source, discord.Interaction):
-            await source.followup.send("✅ Reported." if success else "❌ Report failed.", ephemeral=True)
+        # Just report, no followup private message
+        await browser.report()
 
 # --- Discord Events ---
 
@@ -374,13 +374,42 @@ async def report(ctx):
     if await validate_user(ctx.author, ctx):
         await handle_command_logic(ctx, "report")
 
-# --- Run ---
+# --- Shutdown & Run Logic ---
+
+async def cleanup_on_shutdown():
+    """Runs when Ctrl+C is detected. Deletes menu and closes browser."""
+    global menu_message
+    print("\nInitiating Shutdown Cleanup...")
+
+    # 1. Delete the Control Panel Menu
+    if menu_message:
+        try:
+            await menu_message.delete()
+            print("✅ Control Panel deleted from Discord.")
+        except discord.NotFound:
+            print("Control Panel was already deleted.")
+        except Exception as e:
+            print(f"Error deleting Control Panel: {e}")
+    
+    # 2. Close Browser
+    print("Closing Browser...")
+    await browser.close()
+    
+    # 3. Stop Bot connection
+    print("Disconnecting Bot...")
+    await bot.close()
+
 if __name__ == "__main__":
+    # Create an Event Loop explicitly to handle KeyboardInterrupt
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     try:
-        bot.run(config.BOT_TOKEN)
-    except Exception as e:
-        print(f"Error starting bot: {e}")
+        # Use start() instead of run() to allow graceful exception handling
+        loop.run_until_complete(bot.start(config.BOT_TOKEN))
+    except KeyboardInterrupt:
+        # This block catches Ctrl+C
+        loop.run_until_complete(cleanup_on_shutdown())
     finally:
-        # Cleanup browser on exit
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(browser.close())
+        print("Goodbye.")
+        loop.close()
