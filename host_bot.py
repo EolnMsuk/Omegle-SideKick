@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.edge.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains  # <--- Added Import
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, StaleElementReferenceException
@@ -33,6 +33,23 @@ bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 last_command_time = 0.0
 driver = None
 menu_message = None
+
+# --- Helper: Key Mapping ---
+def get_selenium_key(key_name):
+    """Maps string names from config to Selenium Key objects."""
+    key_name = str(key_name).upper()
+    mapping = {
+        "ESC": Keys.ESCAPE,
+        "ESCAPE": Keys.ESCAPE,
+        "ENTER": Keys.ENTER,
+        "RETURN": Keys.RETURN,
+        "SPACE": Keys.SPACE,
+        "TAB": Keys.TAB,
+        "BACKSPACE": Keys.BACK_SPACE,
+        "DELETE": Keys.DELETE,
+    }
+    # Return the special key if found, otherwise return the character itself (e.g. 'q')
+    return mapping.get(key_name, key_name.lower())
 
 # --- Browser Handler ---
 
@@ -126,39 +143,38 @@ class OmegleHandler:
         await asyncio.to_thread(_automate)
 
     async def skip(self):
-        """Sends ESC keys to skip using ActionChains (Trusted Events)."""
+        """Sends configured keys to skip using ActionChains (Trusted Events)."""
         if not self.driver: return
         
         # Ensure we are on the video page
         if config.OMEGLE_VIDEO_URL not in self.driver.current_url:
             await asyncio.to_thread(self.driver.get, config.OMEGLE_VIDEO_URL)
-            await self.handle_setup_sequence() # This handles Relay/Vol if the page had to reload
+            await self.handle_setup_sequence()
             await asyncio.sleep(1)
 
         def _perform_skip_actions():
             try:
-                # 1. Find body to ensure we have a focus target
+                # 1. Load keys from config (default to ESCAPE x2 if missing)
+                skip_sequence = getattr(config, 'BROWSER_SKIP_SEQUENCE', ["ESCAPE", "ESCAPE"])
+                
+                # 2. Find body to ensure we have a focus target
                 body = self.driver.find_element(By.TAG_NAME, 'body')
                 
-                # 2. Create ActionChain
+                # 3. Create ActionChain
                 actions = ActionChains(self.driver)
+                actions.click(body) # Focus
                 
-                # 3. CLICK the body first. 
-                # This ensures the browser window actually has focus before typing
-                actions.click(body)
-                
-                # 4. Send Escape twice with delays
-                # The delays help bypass rapid-fire spam detection
-                actions.send_keys(Keys.ESCAPE)
-                actions.pause(0.15)
-                actions.send_keys(Keys.ESCAPE)
-                actions.pause(0.15)
+                # 4. Add each key from the sequence to the chain
+                for key_name in skip_sequence:
+                    key_to_press = get_selenium_key(key_name)
+                    actions.send_keys(key_to_press)
+                    actions.pause(0.15) # Small delay between keys
                 
                 # 5. Perform the actions
                 actions.perform()
                 
             except Exception as e:
-                print(f"Error sending ESC via ActionChains: {e}")
+                print(f"Error sending skip sequence: {e}")
         
         await asyncio.to_thread(_perform_skip_actions)
         print("Skipped.")
@@ -263,7 +279,6 @@ async def handle_command_logic(source, action):
 
     # 3. Acknowledge (if interaction)
     if isinstance(source, discord.Interaction):
-        # We defer to stop the "Interaction Failed" or spinner, but we don't send a private followup anymore for reports
         await source.response.defer()
         try:
             # Announce in channel
@@ -276,7 +291,6 @@ async def handle_command_logic(source, action):
     elif action == "refresh":
         await browser.refresh()
     elif action == "report":
-        # Just report, no followup private message
         await browser.report()
 
 # --- Discord Events ---
@@ -343,8 +357,6 @@ async def menu_task():
             try: await menu_message.delete()
             except: pass
 
-        # Optional: Clean up chat to keep the menu visible at bottom
-        # This removes messages sent by the bot (except the new menu)
         try:
             await channel.purge(limit=5, check=lambda m: m.author == bot.user)
         except: pass
@@ -359,16 +371,12 @@ async def menu_task():
         view = SimpleHelpView()
         menu_message = await channel.send(embed=embed, view=view)
 
-    # 1. If we have no record of a message, post it.
     if menu_message is None:
         await post_menu()
     else:
-        # 2. If we have a record, check if it actually exists in Discord
         try:
             await channel.fetch_message(menu_message.id)
-            # If fetch succeeds, the message exists. Do nothing.
         except discord.NotFound:
-            # Message was deleted (manually or otherwise)
             print("Menu missing. Reposting...")
             await post_menu()
         except Exception as e:
@@ -398,7 +406,6 @@ async def cleanup_on_shutdown():
     global menu_message
     print("\nInitiating Shutdown Cleanup...")
 
-    # 1. Delete the Control Panel Menu
     if menu_message:
         try:
             await menu_message.delete()
@@ -408,24 +415,19 @@ async def cleanup_on_shutdown():
         except Exception as e:
             print(f"Error deleting Control Panel: {e}")
     
-    # 2. Close Browser
     print("Closing Browser...")
     await browser.close()
     
-    # 3. Stop Bot connection
     print("Disconnecting Bot...")
     await bot.close()
 
 if __name__ == "__main__":
-    # Create an Event Loop explicitly to handle KeyboardInterrupt
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     try:
-        # Use start() instead of run() to allow graceful exception handling
         loop.run_until_complete(bot.start(config.BOT_TOKEN))
     except KeyboardInterrupt:
-        # This block catches Ctrl+C
         loop.run_until_complete(cleanup_on_shutdown())
     finally:
         print("Goodbye.")
