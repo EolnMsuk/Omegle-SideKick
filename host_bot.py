@@ -9,6 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.edge.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains  # <--- Added Import
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, StaleElementReferenceException
@@ -125,7 +126,7 @@ class OmegleHandler:
         await asyncio.to_thread(_automate)
 
     async def skip(self):
-        """Sends ESC keys to skip."""
+        """Sends ESC keys to skip using ActionChains (Trusted Events)."""
         if not self.driver: return
         
         # Ensure we are on the video page
@@ -134,16 +135,32 @@ class OmegleHandler:
             await self.handle_setup_sequence() # This handles Relay/Vol if the page had to reload
             await asyncio.sleep(1)
 
-        # Send ESC
-        def _send_esc():
+        def _perform_skip_actions():
             try:
-                self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                time.sleep(0.5)
-                self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                # 1. Find body to ensure we have a focus target
+                body = self.driver.find_element(By.TAG_NAME, 'body')
+                
+                # 2. Create ActionChain
+                actions = ActionChains(self.driver)
+                
+                # 3. CLICK the body first. 
+                # This ensures the browser window actually has focus before typing
+                actions.click(body)
+                
+                # 4. Send Escape twice with delays
+                # The delays help bypass rapid-fire spam detection
+                actions.send_keys(Keys.ESCAPE)
+                actions.pause(0.15)
+                actions.send_keys(Keys.ESCAPE)
+                actions.pause(0.15)
+                
+                # 5. Perform the actions
+                actions.perform()
+                
             except Exception as e:
-                print(f"Error sending ESC: {e}")
+                print(f"Error sending ESC via ActionChains: {e}")
         
-        await asyncio.to_thread(_send_esc)
+        await asyncio.to_thread(_perform_skip_actions)
         print("Skipped.")
 
     async def refresh(self):
